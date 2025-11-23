@@ -1,0 +1,12 @@
+
+[
+    { "lang": "en-US", "label": "English (United States)", "dialect": "US" },
+    { "lang": "ta-IN", "label": "Tamil (India)", "dialect": "India" },
+    { "lang": "es-ES", "label": "Spanish (Spain)", "dialect": "Spain" },
+    { "lang": "fr-FR", "label": "French (France)", "dialect": "France" },
+    { "lang": "de-DE", "label": "German (Germany)", "dialect": "Germany" },
+    { "lang": "zh-CN", "label": "Chinese (China)", "dialect": "China" },
+    { "lang": "hi-IN", "label": "Hindi (India)", "dialect": "India" },
+    { "lang": "ar-SA", "label": "Arabic (Saudi Arabia)", "dialect": "Saudi Arabia" }
+  ]
+  
