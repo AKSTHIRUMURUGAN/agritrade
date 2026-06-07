@@ -1,0 +1,39 @@
+{
+  "name": "agri_trade",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^5.0.8",
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.12",
+    "@uploadthing/react": "^6.5.0",
+    "axios": "^1.6.8",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5",
+    "firebase": "^12.10.0",
+    "js-cookie": "^3.0.5",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.3.2",
+    "next": "^14.2.2",
+    "razorpay": "^2.9.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uploadthing": "^6.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.12.7",
+    "@types/react": "18.2.79",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.2",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.3"
+  }
+}
