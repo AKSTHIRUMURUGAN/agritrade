@@ -144,6 +144,10 @@ const farmerShareSchema = new Schema({
     enum: ["open", "funding", "in-progress", "harvesting", "completed", "closed"],
     default: "open"
   },
+  stage: {
+    type: String,
+    default: "Preparation of soil"
+  },
   assured: {
     type: Boolean,
     default: false

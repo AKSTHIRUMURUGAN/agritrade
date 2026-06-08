@@ -23,9 +23,12 @@ export default function EditLand({ id, Land }) {
   const [profitLossPercentage, setProfitLossPercentage] = useState(Land.profitLossPercentage || "");
   const [yearsStayInMarket, setYearsStayInMarket] = useState(Land.yearsStayInMarket || "");
   const [status, setStatus] = useState(Land.status || "open");
+  const [stage, setStage] = useState(Land.stage || "Preparation of soil");
   const [assured, setAssured] = useState(Land.assured || false);
   const [currentAmount, setCurrentAmount] = useState(Land.currentAmount || "");
   const [submitting, setSubmitting] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState("");
+  const [distributing, setDistributing] = useState(false);
 
   const previousAmount = Land.currentAmount;
   const previousAmounts = Land.previousAmounts || [];
@@ -49,7 +52,7 @@ export default function EditLand({ id, Land }) {
           soilTest, documentVerified, kycVerified,
           ranking: Number(ranking), profitLossPercentage: Number(profitLossPercentage),
           yearsStayInMarket: Number(yearsStayInMarket),
-          assured, status, previousAmount, currentAmount: Number(currentAmount),
+          assured, status, stage, previousAmount, currentAmount: Number(currentAmount),
           previousAmounts: updatedPreviousAmounts,
         }),
       });
@@ -66,6 +69,46 @@ export default function EditLand({ id, Land }) {
       setSubmitting(false);
     }
   };
+
+  const handleDistributePayout = async () => {
+    const total = Number(payoutAmount);
+    if (isNaN(total) || total < 0) {
+      alert("Please enter a valid payout pool amount");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to distribute a total return of ₹${total} among active investors? This action will close the project and cannot be undone.`)) {
+      return;
+    }
+
+    setDistributing(true);
+    try {
+      const res = await fetch('/api/admin/lands/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          landId: id,
+          totalPayout: total
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || "Payout distributed successfully!");
+        router.push('/admin/lands');
+      } else {
+        alert(data.error || "Failed to distribute payout.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred during distribution.");
+    } finally {
+      setDistributing(false);
+    }
+  };
+
+  const activeInvestors = Land.investors ? Land.investors.filter(inv => inv.status === 'active') : [];
+  const totalActiveShares = activeInvestors.reduce((sum, inv) => sum + (inv.sharesOwned || 0), 0);
 
   const inputClass = "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
@@ -131,6 +174,20 @@ export default function EditLand({ id, Land }) {
                   <option value="sell">Selling</option>
                   <option value="closed">Closed</option>
                   <option value="completed">Completed</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Current Stage</label>
+                <select value={stage} onChange={(e) => setStage(e.target.value)} className={inputClass}>
+                  <option value="Preparation of soil">Preparation of soil</option>
+                  <option value="Sowing">Sowing</option>
+                  <option value="Adding manures and fertilizer">Adding manures and fertilizer</option>
+                  <option value="Irrigation">Irrigation</option>
+                  <option value="Weeding">Weeding</option>
+                  <option value="Harvesting">Harvesting</option>
+                  <option value="Threshing">Threshing</option>
+                  <option value="Storage">Storage</option>
+                  <option value="Completed">Completed</option>
                 </select>
               </div>
               <div>
@@ -211,6 +268,84 @@ export default function EditLand({ id, Land }) {
               ))}
             </div>
           </div>
+
+          {/* Payout Distribution Section */}
+          {Land.status !== 'completed' && (
+            <div className="bg-white rounded-2xl shadow p-6 border border-emerald-100">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                <span>💸</span> Distribute Payout (Profit/Loss Split)
+              </h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Calculate and split final returns (profit or loss) proportionally among all active investors based on their shares owned. Completing this action will credit user wallets and mark the land project as completed.
+              </p>
+
+              {totalActiveShares === 0 ? (
+                <div className="bg-gray-50 text-gray-600 text-xs p-4 rounded-xl text-center">
+                  ⚠️ No active investors found for this land project. You cannot distribute payouts.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-xs text-green-800 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total Active Shares:</span>
+                      <span className="font-bold">{totalActiveShares} shares</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Active Investors:</span>
+                      <span className="font-bold">{activeInvestors.length} users</span>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 items-end">
+                    <div>
+                      <label className={labelClass}>Total Return Pool (Agri Coins) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 50000"
+                        value={payoutAmount}
+                        onChange={(e) => setPayoutAmount(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={handleDistributePayout}
+                        disabled={distributing || !payoutAmount}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-sm transition disabled:opacity-50"
+                      >
+                        {distributing ? "Distributing..." : "Confirm & Distribute"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {payoutAmount && Number(payoutAmount) >= 0 && (
+                    <div className="border border-gray-150 rounded-xl overflow-hidden text-xs mt-3">
+                      <div className="bg-gray-100 p-2 font-bold text-gray-700 uppercase tracking-wider">
+                        Estimated Payout Distribution Breakdown
+                      </div>
+                      <div className="divide-y divide-gray-100 max-h-40 overflow-y-auto">
+                        {activeInvestors.map((inv) => {
+                          const proportion = inv.sharesOwned / totalActiveShares;
+                          const calculatedPayout = Math.round(Number(payoutAmount) * proportion * 100) / 100;
+                          return (
+                            <div key={inv._id} className="p-2.5 flex justify-between items-center hover:bg-gray-50">
+                              <div>
+                                <span className="font-semibold text-gray-800 block">{inv.userName}</span>
+                                <span className="text-[10px] text-gray-400 block">{inv.sharesOwned} shares ({Math.round(proportion * 100)}%)</span>
+                              </div>
+                              <span className="font-extrabold text-emerald-600">🪙 {calculatedPayout}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-4">

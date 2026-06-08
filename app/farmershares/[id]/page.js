@@ -5,6 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';
 
+const stagesList = [
+  'Preparation of soil',
+  'Sowing',
+  'Adding manures and fertilizer',
+  'Irrigation',
+  'Weeding',
+  'Harvesting',
+  'Threshing',
+  'Storage'
+];
+
 export default function FarmerShareDetail() {
   const params = useParams();
   const router = useRouter();
@@ -14,6 +25,11 @@ export default function FarmerShareDetail() {
   const [investing, setInvesting] = useState(false);
   const [sharesToBuy, setSharesToBuy] = useState(1);
   const [showInvestModal, setShowInvestModal] = useState(false);
+
+  // Admin Console States
+  const [adminUpdating, setAdminUpdating] = useState(false);
+  const [adminPayoutAmount, setAdminPayoutAmount] = useState('');
+  const [adminDistributing, setAdminDistributing] = useState(false);
 
   useEffect(() => {
     if (params.id) fetchShare();
@@ -115,6 +131,65 @@ export default function FarmerShareDetail() {
     }
   };
 
+  const handleAdminUpdate = async (updatedFields) => {
+    setAdminUpdating(true);
+    try {
+      const res = await fetch(`/api/farmershare/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedFields)
+      });
+      if (res.ok) {
+        alert('Farmer share project updated successfully!');
+        fetchShare();
+      } else {
+        alert('Failed to update project.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred.');
+    } finally {
+      setAdminUpdating(false);
+    }
+  };
+
+  const handleAdminPayout = async () => {
+    const total = Number(adminPayoutAmount);
+    if (isNaN(total) || total < 0) {
+      alert("Please enter a valid payout pool amount");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to distribute a total return of ₹${total} among active investors? This action will close the project and cannot be undone.`)) {
+      return;
+    }
+
+    setAdminDistributing(true);
+    try {
+      const res = await fetch('/api/admin/farmershare/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmerShareId: params.id,
+          totalPayout: total
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(data.message || "Payout distributed successfully!");
+        fetchShare();
+      } else {
+        alert(data.error || "Failed to distribute payout.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred during distribution.");
+    } finally {
+      setAdminDistributing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -136,6 +211,8 @@ export default function FarmerShareDetail() {
 
   const fundingPercent = Math.round(((share.totalShares - share.availableShares) / share.totalShares) * 100);
   const totalCost = sharesToBuy * share.pricePerShare;
+  const activeInvestors = share && share.investors ? share.investors.filter(inv => inv.status === 'active') : [];
+  const totalActiveShares = activeInvestors.reduce((sum, inv) => sum + (inv.sharesOwned || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -208,6 +285,180 @@ export default function FarmerShareDetail() {
                 <DetailItem icon="📅" label="Harvest Date" value={share.harvestDate ? new Date(share.harvestDate).toLocaleDateString() : 'TBD'} />
               </div>
             </div>
+
+            {/* Real-time Cultivation Stage Tracker */}
+            <div className="bg-white rounded-2xl shadow p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-lg">🌱</span>
+                <h2 className="text-lg font-bold text-gray-900">Live Cultivation Stage</h2>
+              </div>
+
+              <div className="relative pl-8 space-y-6">
+                {/* Visual vertical line connecting the points */}
+                <div className="absolute left-[18px] top-2 bottom-2 w-0.5 bg-gray-200 pointer-events-none"></div>
+
+                {stagesList.map((stageItem, index) => {
+                  const currentStageIndex = stagesList.indexOf(share.stage || 'Preparation of soil');
+                  const isCompleted = share.status === 'completed' || currentStageIndex > index;
+                  const isActive = share.status !== 'completed' && currentStageIndex === index;
+
+                  return (
+                    <div key={stageItem} className="relative flex items-start gap-4">
+                      {/* Node circle wrapper */}
+                      <div className="absolute -left-8 flex items-center justify-center">
+                        {isCompleted ? (
+                          <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-green-600/20">
+                            ✓
+                          </div>
+                        ) : isActive ? (
+                          <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-white font-bold text-xs relative shadow-md shadow-green-600/35">
+                            <span className="absolute inset-0 rounded-full bg-green-650 animate-ping opacity-75"></span>
+                            <span className="relative z-10 w-2.5 h-2.5 rounded-full bg-white"></span>
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center text-gray-400 text-xs">
+                            {index + 1}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div>
+                        <span className={`text-sm font-bold block ${
+                          isCompleted ? 'text-gray-500 font-medium' :
+                          isActive ? 'text-green-650 font-extrabold' :
+                          'text-gray-400'
+                        }`}>
+                          {stageItem}
+                        </span>
+                        {isActive && (
+                          <span className="text-xs text-gray-500 block mt-0.5">
+                            Currently in progress on this farm. Agronomists are monitoring conditions.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Admin Action Console */}
+            {user?.role === 'admin' && (
+              <div className="bg-gradient-to-br from-slate-900 to-zinc-900 text-white rounded-2xl shadow-xl p-6 border border-emerald-500/30 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-black tracking-widest px-3 py-1 rounded-bl-xl uppercase">
+                  Admin Console
+                </div>
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                  <span>🛠️</span> Administrator Quick Actions
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1">Project Status</label>
+                    <select
+                      value={share.status}
+                      disabled={adminUpdating}
+                      onChange={(e) => handleAdminUpdate({ status: e.target.value })}
+                      className="w-full bg-slate-800 text-white border border-slate-700 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition"
+                    >
+                      <option value="open">Open</option>
+                      <option value="funding">Funding</option>
+                      <option value="in-progress">In Progress</option>
+                      <option value="harvesting">Harvesting</option>
+                      <option value="completed">Completed</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1">Current Stage</label>
+                    <select
+                      value={share.stage || 'Preparation of soil'}
+                      disabled={adminUpdating}
+                      onChange={(e) => handleAdminUpdate({ stage: e.target.value })}
+                      className="w-full bg-slate-800 text-white border border-slate-700 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition"
+                    >
+                      {stagesList.map(s => <option key={s} value={s}>{s}</option>)}
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+
+                {share.status !== 'completed' && (
+                  <div className="border-t border-slate-800 pt-4 mt-4 space-y-4">
+                    <h3 className="text-sm font-bold flex items-center gap-1.5 text-emerald-450">
+                      <span>💸</span> Distribute Payout (Profit/Loss Split)
+                    </h3>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      Calculate and split returns (profit/loss) proportionally among all active investors based on their shares. Credited directly to user wallets.
+                    </p>
+
+                    {totalActiveShares === 0 ? (
+                      <div className="bg-slate-800/50 text-gray-400 text-xs p-3.5 rounded-xl text-center border border-slate-700/50">
+                        ⚠️ No active investors found for this project.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-900/30 text-xs text-emerald-300 flex justify-between items-center">
+                          <div>
+                            <span className="font-semibold block">Active Shares Pool</span>
+                            <span className="text-[10px] text-emerald-450 block">{activeInvestors.length} investors</span>
+                          </div>
+                          <span className="text-base font-black text-emerald-200">{totalActiveShares} shares</span>
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-3 items-end">
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-gray-400 mb-1">Total Return Pool (Agri Coins) *</label>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 50000"
+                              value={adminPayoutAmount}
+                              onChange={(e) => setAdminPayoutAmount(e.target.value)}
+                              className="w-full bg-slate-800 text-white border border-slate-700 px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-emerald-500 transition"
+                            />
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={handleAdminPayout}
+                              disabled={adminDistributing || !adminPayoutAmount}
+                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl font-bold text-sm transition disabled:opacity-50"
+                            >
+                              {adminDistributing ? "Processing..." : "Distribute"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {adminPayoutAmount && Number(adminPayoutAmount) >= 0 && (
+                          <div className="bg-slate-950 border border-slate-850 rounded-xl overflow-hidden text-xs">
+                            <div className="bg-slate-900 p-2 font-bold text-slate-300 uppercase tracking-wider text-[10px]">
+                              Estimated Payout Split Breakdown
+                            </div>
+                            <div className="divide-y divide-slate-900 max-h-36 overflow-y-auto">
+                              {activeInvestors.map((inv) => {
+                                const proportion = inv.sharesOwned / totalActiveShares;
+                                const calculatedPayout = Math.round(Number(adminPayoutAmount) * proportion * 100) / 100;
+                                return (
+                                  <div key={inv._id} className="p-2 flex justify-between items-center hover:bg-slate-900/40">
+                                    <div>
+                                      <span className="font-semibold text-slate-200 block">{inv.userName}</span>
+                                      <span className="text-[10px] text-slate-500 block">{inv.sharesOwned} shares ({Math.round(proportion * 100)}%)</span>
+                                    </div>
+                                    <span className="font-bold text-emerald-400">🪙 {calculatedPayout}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Verification */}
             <div className="bg-white rounded-2xl shadow p-6">

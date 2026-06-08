@@ -54,6 +54,10 @@ const landSchema = new Schema({
       type: String,
       default: "open"
     },
+    stage: {
+      type: String,
+      default: "Preparation of soil"
+    },
     previousAmounts:{
      type:[Number],
      default:[]

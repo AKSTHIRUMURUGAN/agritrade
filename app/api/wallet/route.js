@@ -4,6 +4,8 @@ import User from '@/models/user';
 import Transaction from '@/models/transaction';
 import WithdrawRequest from '@/models/withdrawRequest';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     await connectMongoDB();

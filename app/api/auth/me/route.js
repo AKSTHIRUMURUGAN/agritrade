@@ -3,6 +3,8 @@ import connectDB from '@/libs/mongodb';
 import User from '@/models/user';
 import { verifyToken } from '@/app/lib/jwt';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const authHeader = request.headers.get('authorization');
